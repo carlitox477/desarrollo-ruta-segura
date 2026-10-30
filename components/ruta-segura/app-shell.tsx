@@ -296,7 +296,7 @@ export function AppShell() {
           onSelectRoute={setSelectedId}
           onFlag={handleFlag}
         />
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-2 p-3">
           {pickHint && (
             <div className="pointer-events-auto flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
               <Crosshair className="size-4" aria-hidden /> {pickHint}
@@ -306,7 +306,7 @@ export function AppShell() {
             </div>
           )}
         </div>
-        <div className="absolute right-3 bottom-6 z-[500]">
+        <div className="absolute right-3 bottom-6 z-10">
           <Button
             size="lg"
             variant="destructive"

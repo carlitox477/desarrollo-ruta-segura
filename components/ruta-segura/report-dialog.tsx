@@ -56,7 +56,7 @@ export function ReportDialog({ location, onClose, onCreated }: Props) {
 
   return (
     <Dialog open={!!location} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <form onSubmit={submit} className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle>Reportar incidente</DialogTitle>

@@ -69,7 +69,7 @@ export default function MapView(props: Props) {
         [-34.78, -58.62],
         [-34.45, -58.25],
       ]}
-      className="size-full"
+      className="isolate z-0 size-full"
       zoomControl={false}
     >
       <TileLayer
