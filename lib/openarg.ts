@@ -27,8 +27,10 @@ const SEARCHES = ['delitos ciudad de buenos aires', 'robos CABA', 'luminarias al
 const LIMITATION_NOTE =
   'Los datasets oficiales de criminalidad disponibles se publican agregados por jurisdicción, comuna o barrio y por período; no permiten evaluar el riesgo calle por calle en tiempo real. Por eso no se usan para penalizar segmentos: el ruteo se basa en alertas comunitarias.'
 
+const RELEVANT = /delit|robo|hurto|seguridad|luminar|alumbrado|videovigilancia|c[aá]mara/i
+
 type CacheEntry = { at: number; value: OpenArgStatus }
-const globalCache = globalThis as unknown as { openArgCache?: CacheEntry }
+const globalCache = globalThis as unknown as { openArgCacheV2?: CacheEntry }
 const TTL_MS = 6 * 60 * 60 * 1000
 
 function pick(obj: Record<string, unknown>, keys: string[]) {
@@ -74,7 +76,7 @@ export async function getOpenArgStatus(): Promise<OpenArgStatus> {
       note: `Falta la variable OPENARG_API_KEY (clave gratuita en mcp.openarg.org). ${LIMITATION_NOTE}`,
     }
   }
-  const cached = globalCache.openArgCache
+  const cached = globalCache.openArgCacheV2
   if (cached && Date.now() - cached.at < TTL_MS) return cached.value
 
   const queriedAt = new Date().toISOString()
@@ -93,12 +95,12 @@ export async function getOpenArgStatus(): Promise<OpenArgStatus> {
     const seen = new Set<string>()
     const datasets = results.flat().filter((d) => {
       const k = d.title + d.portal
-      if (seen.has(k)) return false
+      if (seen.has(k) || !RELEVANT.test(`${d.title} ${d.description ?? ''}`)) return false
       seen.add(k)
       return true
     })
     const value: OpenArgStatus = { configured: true, ok: true, queriedAt, queries: SEARCHES, datasets, note: LIMITATION_NOTE }
-    globalCache.openArgCache = { at: Date.now(), value }
+    globalCache.openArgCacheV2 = { at: Date.now(), value }
     return value
   } catch (e) {
     return {
