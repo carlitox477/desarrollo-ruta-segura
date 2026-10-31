@@ -10,6 +10,7 @@ import { CATEGORY_CONFIG, isInsideCaba } from '@/lib/alerts/config'
 import type { LatLng, Priority, ScoredRoute, TravelMode } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { DEMO_TRIP, flagAlert, fmtMin, getAlerts, getPois, postRoutes, sameRoute, withdrawAlert, type Place } from './client'
+import { AccountButton } from './account-button'
 import { LayerToggles } from './layer-toggles'
 import { PlaceInput } from './place-input'
 import { ReportDialog } from './report-dialog'
@@ -45,7 +46,7 @@ function describeChange(prev: ScoredRoute, next: ScoredRoute, prevNow: ScoredRou
   return 'Las alertas cambiaron y se eligió una ruta con menor costo total.'
 }
 
-export function AppShell() {
+export function AppShell({ googleEnabled }: { googleEnabled: boolean }) {
   const [origin, setOrigin] = useState<Place | null>(null)
   const [destination, setDestination] = useState<Place | null>(null)
   const [priority, setPriority] = useState<Priority>('seguridad')
@@ -177,6 +178,8 @@ export function AppShell() {
             <Info />
           </Button>
         </header>
+
+        <AccountButton googleEnabled={googleEnabled} />
 
         <section className="flex flex-col gap-3" aria-label="Viaje">
           <PlaceInput
