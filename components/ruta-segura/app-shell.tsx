@@ -2,10 +2,11 @@
 
 import { Bus, Crosshair, Footprints, Car, Info, LocateFixed, RefreshCw, TriangleAlert, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import useSWR from 'swr'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { CATEGORY_CONFIG, isInsideCaba } from '@/lib/alerts/config'
 import type { LatLng, Priority, ScoredRoute, TravelMode } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -174,9 +175,14 @@ export function AppShell({ googleEnabled }: { googleEnabled: boolean }) {
               Rutas que evitan zonas con alertas recientes de la comunidad.
             </p>
           </div>
-          <Button variant="ghost" size="icon" aria-label="Cómo funciona y fuentes" onClick={() => setSourcesOpen(true)}>
-            <Info />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Link href="/empresas" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+              Empresas
+            </Link>
+            <Button variant="ghost" size="icon" aria-label="Cómo funciona y fuentes" onClick={() => setSourcesOpen(true)}>
+              <Info />
+            </Button>
+          </div>
         </header>
 
         <AccountButton googleEnabled={googleEnabled} />

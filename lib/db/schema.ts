@@ -38,4 +38,27 @@ export const alertFlags = pgTable(
   (t) => [unique().on(t.alertId, t.reporterHash)],
 )
 
+export const datasetRequests = pgTable('dataset_requests', {
+  id: serial('id').primaryKey(),
+  company: text('company').notNull(),
+  contactName: text('contact_name').notNull(),
+  email: text('email').notNull(),
+  useCase: text('use_case'),
+  userId: text('user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const fleetSubscriptions = pgTable('fleet_subscriptions', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  company: text('company').notNull(),
+  vehicles: integer('vehicles').notNull(),
+  status: text('status').notNull(),
+  stripeSessionId: text('stripe_session_id').notNull().unique(),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  stripeCustomerId: text('stripe_customer_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type AlertRow = typeof alerts.$inferSelect
