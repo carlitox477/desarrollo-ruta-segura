@@ -4,57 +4,55 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { auth } from '@/lib/auth'
-import { FLEET_PLAN, formatUsd, isValidVehicleCount } from '@/lib/business/plans'
 import { db } from '@/lib/db'
-import { fleetSubscriptions } from '@/lib/db/schema'
+import { apiAccounts } from '@/lib/db/schema'
 import { stripe } from '@/lib/stripe'
 
-async function confirmSubscription(sessionId: string, userId: string) {
+async function confirmApiSubscription(sessionId: string, userId: string) {
   if (!stripe || !sessionId.startsWith('cs_')) return null
 
   const checkout = await stripe.checkout.sessions.retrieve(sessionId)
   if (checkout.client_reference_id !== userId || checkout.mode !== 'subscription') return null
+  if (checkout.metadata?.plan !== 'api') return null
   if (checkout.status !== 'complete') return { complete: false as const }
 
-  const vehicles = Number(checkout.metadata?.vehicles)
   const company = checkout.metadata?.company ?? ''
-  if (!isValidVehicleCount(vehicles) || !company) return null
-
   const subscriptionId = typeof checkout.subscription === 'string' ? checkout.subscription : checkout.subscription?.id
   const customerId = typeof checkout.customer === 'string' ? checkout.customer : checkout.customer?.id
+  if (!company || !customerId) return null
 
+  const values = {
+    company,
+    status: 'active',
+    stripeSessionId: checkout.id,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscriptionId ?? null,
+    updatedAt: new Date(),
+  }
   await db
-    .insert(fleetSubscriptions)
-    .values({
-      userId,
-      company,
-      vehicles,
-      status: 'active',
-      stripeSessionId: checkout.id,
-      stripeSubscriptionId: subscriptionId ?? null,
-      stripeCustomerId: customerId ?? null,
-    })
-    .onConflictDoNothing({ target: fleetSubscriptions.stripeSessionId })
+    .insert(apiAccounts)
+    .values({ userId, ...values })
+    .onConflictDoUpdate({ target: apiAccounts.userId, set: values })
 
-  return { complete: true as const, vehicles, company }
+  return { complete: true as const, company }
 }
 
 export default async function GraciasPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> }) {
   const { session_id: sessionId } = await searchParams
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/empresas#logistica')
+  if (!session?.user) redirect('/empresas#api')
 
-  const result = sessionId ? await confirmSubscription(sessionId, session.user.id) : null
+  const result = sessionId ? await confirmApiSubscription(sessionId, session.user.id) : null
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-start justify-center gap-4 px-5">
       {result?.complete ? (
         <>
           <CheckCircle2 className="size-8 text-primary" aria-hidden="true" />
-          <h1 className="text-2xl font-semibold tracking-tight">Suscripción activa</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">API activada</h1>
           <p className="leading-relaxed text-muted-foreground">
-            {result.company} quedó suscripta con {result.vehicles} {result.vehicles === 1 ? 'unidad' : 'unidades'} por{' '}
-            {formatUsd(result.vehicles * FLEET_PLAN.pricePerVehicleCents)} al mes. Te enviamos el recibo por email.
+            {result.company} ya tiene acceso a Ruta Segura API. Creá tu primera clave en la sección de empresas;
+            Stripe te factura a fin de mes según las llamadas exitosas.
           </p>
         </>
       ) : (
@@ -69,11 +67,11 @@ export default async function GraciasPage({ searchParams }: { searchParams: Prom
         </>
       )}
       <div className="flex gap-2">
-        <Link href="/" className={buttonVariants()}>
-          Ir al mapa
+        <Link href="/empresas#api" className={buttonVariants()}>
+          Crear API key
         </Link>
-        <Link href="/empresas" className={buttonVariants({ variant: 'outline' })}>
-          Empresas
+        <Link href="/" className={buttonVariants({ variant: 'outline' })}>
+          Ir al mapa
         </Link>
       </div>
     </main>

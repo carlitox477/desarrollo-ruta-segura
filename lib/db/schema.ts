@@ -1,4 +1,5 @@
 import {
+  bigserial,
   boolean,
   doublePrecision,
   integer,
@@ -48,17 +49,36 @@ export const datasetRequests = pgTable('dataset_requests', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const fleetSubscriptions = pgTable('fleet_subscriptions', {
+export const apiAccounts = pgTable('api_accounts', {
   id: serial('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id').notNull().unique(),
   company: text('company').notNull(),
-  vehicles: integer('vehicles').notNull(),
-  status: text('status').notNull(),
-  stripeSessionId: text('stripe_session_id').notNull().unique(),
-  stripeSubscriptionId: text('stripe_subscription_id'),
+  status: text('status').notNull().default('pending'),
+  stripeSessionId: text('stripe_session_id').unique(),
   stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const apiKeys = pgTable('api_keys', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  prefix: text('prefix').notNull(),
+  keyHash: text('key_hash').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+})
+
+export const apiUsage = pgTable('api_usage', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  keyId: integer('key_id').notNull(),
+  userId: text('user_id').notNull(),
+  endpoint: text('endpoint').notNull(),
+  statusCode: integer('status_code').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export type AlertRow = typeof alerts.$inferSelect

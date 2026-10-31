@@ -1,37 +1,59 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lt } from 'drizzle-orm'
 import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { DatasetPanel } from '@/components/empresas/dataset-panel'
-import { FleetPlan } from '@/components/empresas/fleet-plan'
+import { ApiPlan } from '@/components/empresas/api-plan'
+import { ApiReference } from '@/components/empresas/api-reference'
 import { InsurerForm } from '@/components/empresas/insurer-form'
 import { auth, isGoogleLoginConfigured } from '@/lib/auth'
 import { getDatasetStats } from '@/lib/business/dataset'
 import { db } from '@/lib/db'
-import { fleetSubscriptions } from '@/lib/db/schema'
+import { apiAccounts, apiKeys, apiUsage } from '@/lib/db/schema'
 import { isStripeConfigured } from '@/lib/stripe'
 
 export const metadata: Metadata = {
   title: 'Empresas — Ruta Segura CABA',
   description:
-    'Datasets históricos de incidentes reportados en CABA para aseguradoras y suscripción por unidad para empresas de logística.',
+    'Datasets históricos de incidentes reportados en CABA para aseguradoras y API de integración directa con cobro por llamada.',
 }
 
 export default async function EmpresasPage() {
   const session = await auth.api.getSession({ headers: await headers() })
-  const [stats, activeSubscription] = await Promise.all([
+  const userId = session?.user.id
+  const [stats, account] = await Promise.all([
     getDatasetStats(),
-    session?.user
+    userId
       ? db
-          .select({ company: fleetSubscriptions.company, vehicles: fleetSubscriptions.vehicles })
-          .from(fleetSubscriptions)
-          .where(and(eq(fleetSubscriptions.userId, session.user.id), eq(fleetSubscriptions.status, 'active')))
-          .orderBy(desc(fleetSubscriptions.createdAt))
+          .select({ company: apiAccounts.company })
+          .from(apiAccounts)
+          .where(and(eq(apiAccounts.userId, userId), eq(apiAccounts.status, 'active')))
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
   ])
+
+  const monthStart = new Date()
+  monthStart.setUTCDate(1)
+  monthStart.setUTCHours(0, 0, 0, 0)
+
+  const [keys, monthlyCalls] =
+    account && userId
+      ? await Promise.all([
+          db
+            .select({ id: apiKeys.id, name: apiKeys.name, prefix: apiKeys.prefix, lastUsedAt: apiKeys.lastUsedAt })
+            .from(apiKeys)
+            .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)))
+            .orderBy(desc(apiKeys.createdAt))
+            .then((rows) => rows.map((r) => ({ ...r, lastUsedAt: r.lastUsedAt?.toISOString() ?? null }))),
+          db
+            .select({ value: count() })
+            .from(apiUsage)
+            .where(and(eq(apiUsage.userId, userId), gte(apiUsage.createdAt, monthStart), gte(apiUsage.statusCode, 200), lt(apiUsage.statusCode, 300)))
+            .then((rows) => rows[0]?.value ?? 0),
+        ])
+      : [[], 0]
 
   return (
     <div className="min-h-dvh">
@@ -54,8 +76,8 @@ export default async function EmpresasPage() {
             <a href="#aseguradoras" className="hover:text-foreground">
               Aseguradoras
             </a>
-            <a href="#logistica" className="hover:text-foreground">
-              Logística
+            <a href="#api" className="hover:text-foreground">
+              API
             </a>
           </nav>
         </div>
@@ -93,24 +115,27 @@ export default async function EmpresasPage() {
           </div>
         </section>
 
-        <section id="logistica" aria-labelledby="logistica-title" className="flex scroll-mt-6 flex-col gap-6">
+        <section id="api" aria-labelledby="api-title" className="flex scroll-mt-6 flex-col gap-6">
           <div className="flex max-w-2xl flex-col gap-2">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Para logística</p>
-            <h2 id="logistica-title" className="text-2xl font-semibold tracking-tight">
-              Suscripción por unidad de transporte
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Para integraciones</p>
+            <h2 id="api-title" className="text-2xl font-semibold tracking-tight">
+              API de integración directa
             </h2>
             <p className="text-pretty leading-relaxed text-muted-foreground">
-              Tus choferes reciben rutas que esquivan zonas con alertas recientes, en auto o a pie para la última
-              cuadra. Pagás solo por las unidades activas y podés cambiar la cantidad cuando quieras.
+              Conectá tu sistema de despacho, app de reparto o motor de tarificación a las alertas de Ruta
+              Segura. Pagás solo por las llamadas exitosas, sin mínimo mensual.
             </p>
           </div>
-          <FleetPlan
+          <ApiPlan
             signedIn={Boolean(session?.user)}
             googleEnabled={isGoogleLoginConfigured}
             paymentsEnabled={isStripeConfigured}
             publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
-            activeSubscription={activeSubscription}
+            account={account}
+            keys={keys}
+            monthlyCalls={monthlyCalls}
           />
+          <ApiReference />
         </section>
       </main>
     </div>

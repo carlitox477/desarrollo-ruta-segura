@@ -3,7 +3,7 @@
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { useCallback, useMemo } from 'react'
-import { startFleetCheckout } from '@/app/actions/business'
+import { startApiCheckout } from '@/app/actions/business'
 
 const stripeByKey = new Map<string, Promise<Stripe | null>>()
 
@@ -16,17 +16,9 @@ function getStripe(publishableKey: string) {
   return promise
 }
 
-export function FleetCheckout({
-  publishableKey,
-  vehicles,
-  company,
-}: {
-  publishableKey: string
-  vehicles: number
-  company: string
-}) {
+export function ApiCheckout({ publishableKey, company }: { publishableKey: string; company: string }) {
   const stripePromise = useMemo(() => getStripe(publishableKey), [publishableKey])
-  const fetchClientSecret = useCallback(() => startFleetCheckout(vehicles, company), [vehicles, company])
+  const fetchClientSecret = useCallback(() => startApiCheckout(company), [company])
 
   return (
     <div id="checkout" className="min-h-96">

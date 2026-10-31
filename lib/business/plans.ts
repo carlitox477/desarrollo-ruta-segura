@@ -1,22 +1,27 @@
-export const FLEET_PLAN = {
-  id: 'flota-mensual',
-  name: 'Ruta Segura Flotas',
-  description: 'Ruteo con alertas comunitarias para unidades de transporte, facturado por unidad.',
-  pricePerVehicleCents: 500,
+export const API_PLAN = {
+  name: 'Ruta Segura API',
+  description: 'Acceso por API a alertas activas y puntaje de riesgo de rutas en CABA, facturado por llamada.',
   currency: 'usd',
-  minVehicles: 1,
-  maxVehicles: 500,
+  /** Price per successful call, in cents. Stripe accepts up to 12 decimal places. */
+  pricePerCallCents: '0.5',
+  freeCallsPerMonth: 1000,
+  meterEventName: 'ruta_segura_api_call',
+  priceLookupKey: 'ruta-segura-api-por-llamada-v1',
+  maxActiveKeys: 5,
+  rateLimitPerMinute: 120,
 } as const
 
-export function isValidVehicleCount(value: unknown): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= FLEET_PLAN.minVehicles &&
-    value <= FLEET_PLAN.maxVehicles
-  )
+export const PRICE_PER_CALL_USD = Number(API_PLAN.pricePerCallCents) / 100
+
+export function formatUsd(amount: number, maximumFractionDigits = 2) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: Math.min(2, maximumFractionDigits),
+    maximumFractionDigits,
+  }).format(amount)
 }
 
-export function formatUsd(cents: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(cents / 100)
+export function estimateMonthlyCost(calls: number) {
+  return Math.max(0, calls - API_PLAN.freeCallsPerMonth) * PRICE_PER_CALL_USD
 }
