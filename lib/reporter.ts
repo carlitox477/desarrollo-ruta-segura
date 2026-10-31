@@ -1,12 +1,12 @@
 import 'server-only'
 import { createHash, randomUUID } from 'node:crypto'
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 
 const COOKIE = 'rs_device'
 
 /**
- * Anonymous reporter identity: hash of a device cookie + client IP.
- * Used only for rate limiting, duplicate detection and flagging; never exposed.
+ * Anonymous reporter identity: hash of a device cookie.
+ * Used for ownership (withdraw), rate limiting, duplicate detection and flagging; never exposed.
  */
 export async function getReporterHash() {
   const jar = await cookies()
@@ -21,7 +21,7 @@ export async function getReporterHash() {
       path: '/',
     })
   }
-  const h = await headers()
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? h.get('x-real-ip') ?? 'unknown'
-  return createHash('sha256').update(`${device}|${ip}|ruta-segura`).digest('hex').slice(0, 32)
+  // IP is deliberately excluded: proxies and mobile networks rotate it, which would make
+  // users lose ownership of their own reports (and break withdraw/flag dedupe).
+  return createHash('sha256').update(`${device}|ruta-segura`).digest('hex').slice(0, 32)
 }

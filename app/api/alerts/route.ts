@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: Request) {
   const includeInactive = new URL(req.url).searchParams.get('all') === '1'
   try {
-    const alerts = await listAlerts({ includeInactive })
+    const alerts = await listAlerts({ includeInactive, reporterHash: await getReporterHash() })
     return NextResponse.json({ alerts })
   } catch (e) {
     console.error('[alerts] list failed', e)

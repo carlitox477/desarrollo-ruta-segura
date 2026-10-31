@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { CATEGORY_CONFIG, isInsideCaba } from '@/lib/alerts/config'
 import type { LatLng, Priority, ScoredRoute, TravelMode } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { DEMO_TRIP, flagAlert, fmtMin, getAlerts, postRoutes, sameRoute, type Place } from './client'
+import { DEMO_TRIP, flagAlert, fmtMin, getAlerts, getPois, postRoutes, sameRoute, withdrawAlert, type Place } from './client'
+import { LayerToggles } from './layer-toggles'
 import { PlaceInput } from './place-input'
 import { ReportDialog } from './report-dialog'
 import { RouteList } from './route-list'
@@ -59,6 +60,13 @@ export function AppShell() {
     refreshInterval: 20_000,
   })
   const alerts = alertsData?.alerts ?? []
+
+  const [showComisarias, setShowComisarias] = useState(true)
+  const [showCamaras, setShowCamaras] = useState(true)
+  const { data: pois, error: poisError } = useSWR('/api/pois', getPois, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+  })
   const alertsSig = alerts.map((a) => `${a.id}:${a.flagCount}:${a.confirmCount}`).join('|')
 
   const tripKey =
@@ -131,6 +139,16 @@ export function AppShell() {
       mutateAlerts()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo marcar la alerta.')
+    }
+  }
+
+  async function handleWithdraw(id: number) {
+    try {
+      await withdrawAlert(id)
+      toast.success('Retiraste tu denuncia. Las rutas se recalculan sin ella.')
+      mutateAlerts()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo retirar la denuncia.')
     }
   }
 
@@ -295,6 +313,17 @@ export function AppShell() {
           onMapClick={handleMapClick}
           onSelectRoute={setSelectedId}
           onFlag={handleFlag}
+          onWithdraw={handleWithdraw}
+          comisarias={pois?.comisarias ?? []}
+          camaras={pois?.camaras ?? []}
+          showComisarias={showComisarias}
+          showCamaras={showCamaras}
+        />
+        <LayerToggles
+          comisarias={{ count: pois?.comisarias.length, on: showComisarias, set: setShowComisarias }}
+          camaras={{ count: pois?.camaras.length, on: showCamaras, set: setShowCamaras }}
+          loading={!pois && !poisError}
+          error={!!poisError}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-2 p-3">
           {pickHint && (

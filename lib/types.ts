@@ -8,7 +8,26 @@ export type AlertCategory =
   | 'sospechosa'
   | 'otro'
 
-export type AlertStatus = 'active' | 'expired' | 'dismissed'
+export type AlertStatus = 'active' | 'expired' | 'dismissed' | 'withdrawn'
+
+export type PoiKind = 'comisaria' | 'camara'
+
+export type Poi = {
+  id: string
+  kind: PoiKind
+  name: string
+  detail: string | null
+  lat: number
+  lng: number
+  source: 'gcba' | 'osm'
+}
+
+export type PoisResponse = {
+  comisarias: Poi[]
+  camaras: Poi[]
+  sources: { id: string; label: string; url: string; count: number; ok: boolean }[]
+  fetchedAt: string
+}
 
 export type Alert = {
   id: number
@@ -24,6 +43,8 @@ export type Alert = {
   isDemo: boolean
   flagCount: number
   confirmCount: number
+  isMine: boolean
+  flaggedByMe: boolean
 }
 
 export type Priority = 'seguridad' | 'tiempo' | 'distancia'

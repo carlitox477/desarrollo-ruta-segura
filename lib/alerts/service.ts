@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, desc, eq, gt, gte, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { alertFlags, alerts, type AlertRow } from '@/lib/db/schema'
@@ -23,7 +23,9 @@ export const createAlertSchema = z.object({
 
 export type CreateAlertInput = z.infer<typeof createAlertSchema>
 
-function toAlert(row: AlertRow, now = Date.now()): Alert {
+type Viewer = { reporterHash?: string; flaggedIds?: Set<number> }
+
+function toAlert(row: AlertRow, viewer: Viewer = {}, now = Date.now()): Alert {
   let status = row.status as AlertStatus
   if (status === 'active' && row.expiresAt.getTime() <= now) status = 'expired'
   return {
@@ -40,10 +42,12 @@ function toAlert(row: AlertRow, now = Date.now()): Alert {
     isDemo: row.isDemo,
     flagCount: row.flagCount,
     confirmCount: row.confirmCount,
+    isMine: !!viewer.reporterHash && row.reporterHash === viewer.reporterHash,
+    flaggedByMe: viewer.flaggedIds?.has(row.id) ?? false,
   }
 }
 
-export async function listAlerts({ includeInactive = false } = {}) {
+export async function listAlerts({ includeInactive = false, reporterHash }: { includeInactive?: boolean; reporterHash?: string } = {}) {
   const since = new Date(Date.now() - 7 * 24 * 3_600_000)
   const rows = await db
     .select()
@@ -51,7 +55,31 @@ export async function listAlerts({ includeInactive = false } = {}) {
     .where(includeInactive ? gte(alerts.createdAt, since) : and(eq(alerts.status, 'active'), gt(alerts.expiresAt, new Date())))
     .orderBy(desc(alerts.createdAt))
     .limit(500)
-  return rows.map((r) => toAlert(r))
+  let flaggedIds: Set<number> | undefined
+  if (reporterHash && rows.length > 0) {
+    const flags = await db
+      .select({ alertId: alertFlags.alertId })
+      .from(alertFlags)
+      .where(and(eq(alertFlags.reporterHash, reporterHash), inArray(alertFlags.alertId, rows.map((r) => r.id))))
+    flaggedIds = new Set(flags.map((f) => f.alertId))
+  }
+  return rows.map((r) => toAlert(r, { reporterHash, flaggedIds }))
+}
+
+/** Only the original reporter (same anonymous device hash) can withdraw their own report. */
+export async function withdrawAlert(alertId: number, reporterHash: string) {
+  const [existing] = await db.select().from(alerts).where(eq(alerts.id, alertId)).limit(1)
+  if (!existing) throw new AlertError('La alerta no existe.', 404)
+  if (existing.reporterHash !== reporterHash) {
+    throw new AlertError('Solo quien hizo el reporte puede retirarlo.', 403)
+  }
+  if (existing.status !== 'active') throw new AlertError('Esta alerta ya no está activa.', 409)
+  const [updated] = await db
+    .update(alerts)
+    .set({ status: 'withdrawn' })
+    .where(and(eq(alerts.id, alertId), eq(alerts.reporterHash, reporterHash)))
+    .returning()
+  return toAlert(updated, { reporterHash })
 }
 
 export class AlertError extends Error {
@@ -123,7 +151,7 @@ export async function createAlert(input: CreateAlertInput, reporterHash: string)
       .set({ confirmCount: sql`${alerts.confirmCount} + 1` })
       .where(eq(alerts.id, duplicate.id))
       .returning()
-    return { alert: toAlert(updated), duplicateOf: duplicate.id }
+    return { alert: toAlert(updated, { reporterHash }), duplicateOf: duplicate.id }
   }
 
   const [row] = await db
@@ -139,15 +167,17 @@ export async function createAlert(input: CreateAlertInput, reporterHash: string)
       reporterHash,
     })
     .returning()
-  return { alert: toAlert(row), duplicateOf: null as number | null }
+  return { alert: toAlert(row, { reporterHash }), duplicateOf: null as number | null }
 }
 
 export async function flagAlert(alertId: number, reporterHash: string) {
   const [existing] = await db.select().from(alerts).where(eq(alerts.id, alertId)).limit(1)
   if (!existing) throw new AlertError('La alerta no existe.', 404)
   if (existing.reporterHash === reporterHash) {
-    throw new AlertError('No podés marcar como falsa tu propia alerta.', 400)
+    throw new AlertError('No podés marcar como falsa tu propia alerta. Si ya no aplica, retirala.', 400)
   }
+  if (existing.isDemo) throw new AlertError('Las alertas de ejemplo no se pueden marcar.', 400)
+  if (existing.status !== 'active') throw new AlertError('Esta alerta ya no está activa.', 409)
   const inserted = await db
     .insert(alertFlags)
     .values({ alertId, reporterHash })
@@ -163,5 +193,5 @@ export async function flagAlert(alertId: number, reporterHash: string) {
     })
     .where(eq(alerts.id, alertId))
     .returning()
-  return toAlert(updated)
+  return toAlert(updated, { reporterHash, flaggedIds: new Set([alertId]) })
 }

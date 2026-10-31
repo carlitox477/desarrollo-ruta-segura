@@ -5,10 +5,17 @@ import L from 'leaflet'
 import { useEffect, useMemo } from 'react'
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { CATEGORY_CONFIG, SEVERITY_LABELS } from '@/lib/alerts/config'
-import type { Alert, LatLng, ScoredRoute } from '@/lib/types'
+import type { Alert, LatLng, Poi, ScoredRoute } from '@/lib/types'
+import { AlertActions } from './alert-actions'
 import { fmtAge, MAP_COLORS, type Place } from './client'
+import { CamarasLayer, ComisariasLayer } from './poi-layers'
 
 type Props = {
+  comisarias: Poi[]
+  camaras: Poi[]
+  showComisarias: boolean
+  showCamaras: boolean
+  onWithdraw: (id: number) => Promise<void>
   alerts: Alert[]
   routes: ScoredRoute[]
   selectedId: string | null
@@ -17,7 +24,7 @@ type Props = {
   draft: LatLng | null
   onMapClick: (p: LatLng) => void
   onSelectRoute: (id: string) => void
-  onFlag: (id: number) => void
+  onFlag: (id: number) => Promise<void>
 }
 
 function pinIcon(letter: string, bg: string, fg: string) {
@@ -79,6 +86,8 @@ export default function MapView(props: Props) {
       />
       <ClickHandler onClick={props.onMapClick} />
       <FitToRoutes routes={routes} origin={origin} destination={destination} />
+      {props.showCamaras && <CamarasLayer items={props.camaras} />}
+      {props.showComisarias && <ComisariasLayer items={props.comisarias} />}
 
       {others.map((r) => (
         <Polyline
@@ -128,15 +137,7 @@ export default function MapView(props: Props) {
                 <p className="font-mono text-xs text-muted-foreground">
                   {a.confirmCount} confirmaciones · {a.flagCount} marcas · vence {new Date(a.expiresAt).toLocaleDateString('es-AR')}
                 </p>
-                {!a.isDemo && (
-                  <button
-                    type="button"
-                    onClick={() => props.onFlag(a.id)}
-                    className="self-start rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Marcar como falsa o abusiva
-                  </button>
-                )}
+                <AlertActions alert={a} onFlag={props.onFlag} onWithdraw={props.onWithdraw} />
               </div>
             </Popup>
           </CircleMarker>

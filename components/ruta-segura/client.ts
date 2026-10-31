@@ -1,4 +1,4 @@
-import type { Alert, LatLng, Priority, RoutesResponse, ScoredRoute, TravelMode } from '@/lib/types'
+import type { Alert, LatLng, PoisResponse, Priority, RoutesResponse, ScoredRoute, TravelMode } from '@/lib/types'
 
 export type Place = LatLng & { label: string }
 export type Trip = { origin: LatLng; destination: LatLng; priority: Priority; mode: TravelMode }
@@ -54,6 +54,12 @@ export async function postAlert(body: unknown) {
 export async function flagAlert(id: number) {
   return json<{ alert: Alert }>(await fetch(`/api/alerts/${id}/flag`, { method: 'POST' }))
 }
+
+export async function withdrawAlert(id: number) {
+  return json<{ alert: Alert }>(await fetch(`/api/alerts/${id}`, { method: 'DELETE' }))
+}
+
+export const getPois = (url: string) => fetch(url).then((r) => json<PoisResponse>(r))
 
 export function sameRoute(a: ScoredRoute, b: ScoredRoute) {
   return (
