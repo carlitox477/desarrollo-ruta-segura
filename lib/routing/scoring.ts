@@ -1,6 +1,6 @@
 import { CATEGORY_CONFIG } from '@/lib/alerts/config'
 import { pointToSegmentMeters } from '@/lib/geo'
-import type { Alert, AlertImpact, Priority, ScoredRoute } from '@/lib/types'
+import type { Alert, AlertImpact, Priority, ScoredRoute, TransitStep } from '@/lib/types'
 
 /**
  * Configurable, deterministic safety cost model.
@@ -33,9 +33,12 @@ export const SCORING_CONFIG = {
 
 export type RawRoute = {
   geometry: [number, number][]
+  /** Portion of the route where the traveler is on the street; defaults to the whole geometry. */
+  exposureGeometry?: [number, number][]
   distanceMeters: number
   durationSeconds: number
-  source: 'osrm' | 'desvio'
+  source: 'osrm' | 'desvio' | 'google'
+  steps?: TransitStep[]
 }
 
 function ageDecay(alert: Alert, now: number) {
@@ -122,7 +125,8 @@ export function scoreRoutes(raw: RawRoute[], alerts: Alert[], priority: Priority
   const alertWeight = SCORING_CONFIG.priorityAlertWeight[priority]
 
   const scored = reasonable.map((r, i): ScoredRoute => {
-    const impacts = computeImpacts(r.geometry, alerts, now)
+    const exposure = r.exposureGeometry ?? r.geometry
+    const impacts = computeImpacts(exposure, alerts, now)
     const base =
       priority === 'distancia'
         ? r.distanceMeters / SCORING_CONFIG.distanceModeMetersPerSecond
@@ -141,10 +145,11 @@ export function scoreRoutes(raw: RawRoute[], alerts: Alert[], priority: Priority
       riskDataPenaltySeconds: riskDataPenalty,
       cost: Math.round(base + alertPenalty * alertWeight + riskDataPenalty),
       impacts,
-      affectedSegments: affectedSegments(r.geometry, impacts),
+      affectedSegments: affectedSegments(exposure, impacts),
       riskLevel: riskLevel(alertPenalty, impacts.length),
       recommended: false,
       explanation: '',
+      steps: r.steps,
     }
   })
 

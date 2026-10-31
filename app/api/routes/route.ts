@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isInsideCaba } from '@/lib/alerts/config'
 import { listAlerts } from '@/lib/alerts/service'
+import { fetchTransitRoutes } from '@/lib/routing/google-transit'
 import { dedupeRoutes, fetchBaseRoutes, fetchDetours } from '@/lib/routing/osrm'
 import { computeImpacts, scoreRoutes, type RawRoute } from '@/lib/routing/scoring'
 import type { Alert, RoutesResponse } from '@/lib/types'
@@ -13,7 +14,7 @@ const schema = z.object({
   origin: point,
   destination: point,
   priority: z.enum(['seguridad', 'tiempo', 'distancia']).default('seguridad'),
-  mode: z.enum(['foot', 'car']).default('foot'),
+  mode: z.enum(['foot', 'car', 'transit']).default('foot'),
 })
 
 export async function POST(req: Request) {
@@ -31,6 +32,38 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error('[routes] alerts unavailable', e)
     warnings.push('No se pudieron leer las alertas: las rutas se calcularon sin penalizaciones.')
+  }
+
+  if (mode === 'transit') {
+    let transit
+    try {
+      transit = await fetchTransitRoutes(origin, destination)
+    } catch (e) {
+      console.error('[routes] transit', e)
+      return NextResponse.json(
+        { error: 'No se pudo consultar el transporte público (Google Routes). Probá de nuevo.' },
+        { status: 502 },
+      )
+    }
+    if (transit.length === 0) {
+      return NextResponse.json(
+        { error: 'No hay combinaciones de transporte público para este viaje en este horario.' },
+        { status: 404 },
+      )
+    }
+    const body: RoutesResponse = {
+      routes: scoreRoutes(transit, alerts, priority).slice(0, 4),
+      priority,
+      mode,
+      alertsConsidered: alerts.length,
+      officialData: {
+        available: false,
+        note: 'En transporte público se penalizan sólo los tramos a pie (donde estás en la calle).',
+      },
+      computedAt: new Date().toISOString(),
+      warnings,
+    }
+    return NextResponse.json(body)
   }
 
   let raw: RawRoute[]

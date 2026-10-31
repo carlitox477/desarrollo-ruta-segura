@@ -4,6 +4,7 @@ import { CATEGORY_CONFIG } from '@/lib/alerts/config'
 import type { ScoredRoute } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { fmtDist, fmtMin } from './client'
+import { TransitDetail, TransitSummary } from './transit-steps'
 
 const RISK_LABEL: Record<ScoredRoute['riskLevel'], string> = {
   sin_datos: 'Sin alertas cercanas',
@@ -58,8 +59,10 @@ export function RouteList({
                   {r.alertPenaltySeconds > 0 && <span className="text-destructive"> (+{fmtMin(r.alertPenaltySeconds)})</span>}
                 </span>
               </div>
+              {r.steps && !isSel && <TransitSummary steps={r.steps} />}
               {isSel && (
                 <>
+                  {r.steps && <TransitDetail steps={r.steps} />}
                   <p className="text-sm leading-relaxed text-muted-foreground text-pretty">{r.explanation}</p>
                   {r.impacts.length > 0 && (
                     <ul className="flex flex-col gap-1 border-t border-border pt-2 font-mono text-xs text-muted-foreground">

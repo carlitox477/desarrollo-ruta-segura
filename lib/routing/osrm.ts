@@ -2,7 +2,7 @@ import { haversineMeters, offsetPoint } from '@/lib/geo'
 import type { LatLng, TravelMode } from '@/lib/types'
 import type { RawRoute } from './scoring'
 
-const ENDPOINTS: Record<TravelMode, string> = {
+const ENDPOINTS: Record<Exclude<TravelMode, 'transit'>, string> = {
   foot: 'https://routing.openstreetmap.de/routed-foot/route/v1/driving',
   car: 'https://router.project-osrm.org/route/v1/driving',
 }
@@ -14,7 +14,7 @@ type OsrmResponse = {
 
 async function request(points: LatLng[], mode: TravelMode, alternatives: boolean) {
   const coords = points.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';')
-  const url = `${ENDPOINTS[mode]}/${coords}?overview=full&geometries=geojson&alternatives=${alternatives ? 3 : 'false'}`
+  const url = `${ENDPOINTS[mode === 'transit' ? 'foot' : mode]}/${coords}?overview=full&geometries=geojson&alternatives=${alternatives ? 3 : 'false'}`
   const res = await fetch(url, {
     signal: AbortSignal.timeout(12_000),
     headers: { 'User-Agent': 'RutaSegura-hackathon/0.1' },

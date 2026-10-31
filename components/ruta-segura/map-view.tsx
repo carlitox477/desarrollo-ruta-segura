@@ -103,10 +103,24 @@ export default function MapView(props: Props) {
             positions={selected.geometry.map(([lng, lat]) => [lat, lng])}
             pathOptions={{ color: MAP_COLORS.ink, weight: 10, opacity: 0.9 }}
           />
-          <Polyline
-            positions={selected.geometry.map(([lng, lat]) => [lat, lng])}
-            pathOptions={{ color: MAP_COLORS.primary, weight: 6 }}
-          />
+          {selected.steps ? (
+            selected.steps.map((s, i) => (
+              <Polyline
+                key={`step-${i}`}
+                positions={s.geometry.map(([lng, lat]) => [lat, lng])}
+                pathOptions={
+                  s.kind === 'walk'
+                    ? { color: MAP_COLORS.fg, weight: 4, dashArray: '1 9', lineCap: 'round' }
+                    : { color: s.color ?? MAP_COLORS.primary, weight: 6 }
+                }
+              />
+            ))
+          ) : (
+            <Polyline
+              positions={selected.geometry.map(([lng, lat]) => [lat, lng])}
+              pathOptions={{ color: MAP_COLORS.primary, weight: 6 }}
+            />
+          )}
           {selected.affectedSegments.map((seg, i) => (
             <Polyline key={i} positions={seg} pathOptions={{ color: MAP_COLORS.danger, weight: 7 }} />
           ))}

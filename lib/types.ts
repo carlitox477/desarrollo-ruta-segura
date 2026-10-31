@@ -48,7 +48,29 @@ export type Alert = {
 }
 
 export type Priority = 'seguridad' | 'tiempo' | 'distancia'
-export type TravelMode = 'foot' | 'car'
+export type TravelMode = 'foot' | 'car' | 'transit'
+
+export type TransitVehicle = 'colectivo' | 'subte' | 'tren' | 'premetro'
+
+export type TransitStep =
+  | { kind: 'walk'; durationSeconds: number; distanceMeters: number; geometry: [number, number][] }
+  | {
+      kind: 'transit'
+      durationSeconds: number
+      distanceMeters: number
+      geometry: [number, number][]
+      vehicle: TransitVehicle
+      lineShort: string
+      lineName: string | null
+      color: string | null
+      textColor: string | null
+      headsign: string | null
+      from: string | null
+      to: string | null
+      departureTime: string | null
+      arrivalTime: string | null
+      stopCount: number | null
+    }
 
 export type AlertImpact = {
   alertId: number
@@ -76,6 +98,7 @@ export type ScoredRoute = {
   riskLevel: 'sin_datos' | 'bajo' | 'moderado' | 'elevado'
   recommended: boolean
   explanation: string
+  steps?: TransitStep[]
 }
 
 export type RoutesResponse = {

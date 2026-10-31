@@ -1,6 +1,6 @@
 'use client'
 
-import { Crosshair, Footprints, Car, Info, LocateFixed, RefreshCw, TriangleAlert, X } from 'lucide-react'
+import { Bus, Crosshair, Footprints, Car, Info, LocateFixed, RefreshCw, TriangleAlert, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -236,6 +236,7 @@ export function AppShell() {
               [
                 { value: 'foot', label: 'A pie', Icon: Footprints },
                 { value: 'car', label: 'Auto', Icon: Car },
+                { value: 'transit', label: 'Transporte', Icon: Bus },
               ] as const
             ).map(({ value, label, Icon }) => (
               <button
@@ -283,6 +284,11 @@ export function AppShell() {
                 </span>
                 <span>{isValidating ? 'recalculando…' : `calc. ${new Date(routesData!.computedAt).toLocaleTimeString('es-AR')}`}</span>
               </div>
+              {routesData?.mode === 'transit' && (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Horarios de Google Maps para salir ahora. Se penalizan sólo los tramos a pie.
+                </p>
+              )}
               {routesData?.warnings.map((w) => (
                 <p key={w} className="text-sm text-destructive">
                   {w}
